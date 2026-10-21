@@ -95,7 +95,7 @@ Your steering picks a share of that angle, and the wheel turns toward it at up t
 | Group | Settings (the AI's value) |
 |---|---|
 | Grip | base grip (1.8 g), downforce grip (3.2 g), downforce reference speed (252 km/h), downforce speed exponent (v², the game's own), max grip (5 g), grip multiplier (×1), steering scaled to grip (on) |
-| Traction circle and braking | traction circle (on), grip kept at full brake / throttle (20%), traction limit a_max (20 m/s², also engine power), full braking (20 m/s²), engine braking (50%), brakes + engine braking cap (×1.2) |
+| Traction circle and braking | traction circle (on), grip kept at full brake / throttle (25%), traction limit a_max (27 m/s², also engine power), full braking (30 m/s²), engine braking (50%), brakes + engine braking cap (×1.4) |
 | Steering | wheel speed sv_max (1.5 rad/s), full lock s_max (0.6 rad), wheelbase (3.6 m) |
 | Engine and top speed | top speed (310 km/h), power switch speed v_switch (126 km/h: more power at speed, same top speed) |
 | Slipstream | top-speed boost (+10%), pull (10 m/s²), full wake within (15 m), wake reaches (120 m), full wake width (±1.5 m), wake width (±3 m), from (72 km/h) |

@@ -168,7 +168,7 @@ def test_preview_shows_what_each_change_does(cfg):
     softer = carphysics.preview(cfg, dict(sim, exponent=1.5), [3, 3, 3, 3, 3])[0]
     assert softer[3][1][0][1] < rows[3][1][0][1] * 0.95                  # 180 km/h: v^1.5 grips more
     assert softer[-1][1][0][1] == pytest.approx(rows[-1][1][0][1])       # 288 km/h: both at max_g
-    brakes = carphysics.preview(cfg, dict(sim, brake_max=30.0), [3, 3, 3, 3, 3])[3]
+    brakes = carphysics.preview(cfg, dict(sim, brake_max=sim["brake_max"] * 1.5), [3, 3, 3, 3, 3])[3]
     assert brakes[3] < you[3] * 0.8                                      # shorter braking
 
 

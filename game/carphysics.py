@@ -58,7 +58,7 @@ class Var:
     key: str
     group: str
     label: str
-    path: str           # the settings key ("section.key"), or "" for the game's own (grip, exponent, brake_max, wheelbase)
+    path: str           # the settings key ("section.key"), or "" for the game's own (grip, exponent, wheelbase)
     lo: float
     hi: float
     step: float
@@ -102,7 +102,8 @@ VARS = [
         "{:.0%}", "cornering grip left when braking or throttle take all the tyre"),
     Var("a_max", "traction", "Traction limit (a_max)", "car.a_max", 5.0, 60.0, 1.0, "{:.0f} m/s²",
         "the tyre's push: acceleration below v_switch, and engine power (a_max x v_switch)"),
-    Var("brake_max", "traction", "Full braking", "", 5.0, 60.0, 1.0, "{:.0f} m/s²", "how hard full brakes slow you"),
+    Var("brake_max", "traction", "Full braking", "engine.brake_max", 5.0, 60.0, 1.0, "{:.0f} m/s²",
+        "how hard full brakes slow you"),
     Var("brake_share", "traction", "Engine braking", "engine.brake_share", 0.0, 1.0, 0.05, "{:.0%}",
         "off the throttle: this share of full braking, also on the tyre"),
     Var("brake_limit", "traction", "Brakes + engine braking cap", "engine.brake_limit", 1.0, 2.0, 0.05, "x{:.2f}",
@@ -161,7 +162,7 @@ def sim_values(cfg):
         if v.path:
             x = _get(cfg, v.path)
             vals[v.key] = bool(x) if v.fmt == "bool" else float(x)
-    vals.update(grip=1.0, exponent=2.0, brake_max=float(cfg.car.a_max), wheelbase=float(cfg.wheelbase))
+    vals.update(grip=1.0, exponent=2.0, wheelbase=float(cfg.wheelbase))
     return vals
 
 
@@ -231,10 +232,8 @@ class CarPhysics:
         self.pcfg = cfg.override(over)
 
     def car(self, design_row):
-        """Your car's per-car parameters (design.car_params with your values; brake_max on top)."""
-        car = design.car_params(self.pcfg, np.asarray(design_row)[None, :])
-        car.brake = car.brake * self.vals["brake_max"] / self.vals["a_max"]
-        return car
+        """Your car's per-car parameters (design.car_params with your values)."""
+        return design.car_params(self.pcfg, np.asarray(design_row)[None, :])
 
     def apply(self, env, i, design_row):
         """Set car i up with these values (after env.set_designs, which rebuilds the env's per-car parameters)."""
