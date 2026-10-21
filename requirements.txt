@@ -1,0 +1,5 @@
+# The simulator's gym (a submodule of the simulator submodule) brings numpy, numba, torch, gymnasium, PyQt6, ...
+-e ./simulator/f1tenth_gym
+rich>=13
+# Game controllers (SDL2, no pygame window)
+pygame-ce>=2.5

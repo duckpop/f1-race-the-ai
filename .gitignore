@@ -1,2 +1,4 @@
 .venv/
 __pycache__/
+# Your settings, control mappings and lap records
+player/
