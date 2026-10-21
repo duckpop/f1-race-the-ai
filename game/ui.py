@@ -155,6 +155,13 @@ class Menu:
                 return True
         return False
 
+    def content_height(self):
+        """Height (px at scale 1) of the title, rows, notes and the two bottom lines."""
+        h = (74 if self.title else 10) + 70
+        for item in self.items:
+            h += 34 + (12 if item.gap_before else 0) + (20 if item.note and item.note() else 0)
+        return h
+
     def paint(self, p, rect, scale=1.0, label_w=None):
         """The menu inside rect (title, rows, hint)."""
         row_h = 34 * scale
@@ -202,6 +209,8 @@ class MenuPage(QtWidgets.QWidget):
         p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
         p.fillRect(self.rect(), PAGE_BG)
         scale = max(min(self.height() / 900, 1.6), 0.75)
+        if self.menu is not None:                       # shrink to fit the window
+            scale = min(scale, (self.height() - 48) / self.menu.content_height())
         w = min(self.width() - 40, 760 * scale)
         r = QtCore.QRectF((self.width() - w) / 2, 24 * scale, w, self.height() - 48 * scale)
         panel(p, r, QtGui.QColor(28, 29, 33), 12)

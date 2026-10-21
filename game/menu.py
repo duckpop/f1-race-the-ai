@@ -7,6 +7,7 @@ from game import sim  # noqa: F401
 from racer import design
 
 from game import ui
+from game import carphysics
 from game.settings import DIFFICULTY, LAPS_RANGE, MAX_AI, PROFILES, SECONDS_RANGE
 
 CATEGORY_TRADEOFF = {
@@ -82,10 +83,14 @@ def setup_menu(app):
         ui.Item("Grid slot", lambda: "Random" if s.grid == "random" else f"P{s.grid}",
                 lambda: set_grid(-1), lambda: set_grid(1)),
     ]
+    items.append(ui.Item("Car physics", lambda: carphysics.label(cfg, s.physics), activate=app.open_physics,
+                         gap_before=True,
+                         note=lambda: "your car only: grip, downforce, braking, steering" if selected("Car physics")
+                         else None))
     for k, cat in enumerate(categories):
         label = cat.capitalize()
         items.append(ui.Item(label, (lambda k=k: f"{s.design[k]}"), (lambda k=k: set_level(k, -1)),
-                             (lambda k=k: set_level(k, 1)), gap_before=k == 0,
+                             (lambda k=k: set_level(k, 1)),
                              note=(lambda lab=label, c=cat: CATEGORY_TRADEOFF[c] if selected(lab) else None)))
     # The last design row also shows the whole design and the points used.
     items[-1].note = (lambda c=categories[-1]: (CATEGORY_TRADEOFF[c] + "   ·   " if selected(c.capitalize()) else "")
