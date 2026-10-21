@@ -28,6 +28,7 @@ class RaceSettings:
     crashes: str = "respawn"                  # "respawn" or "out"
     grid: object = "random"                   # "random" or a slot, 1 = pole
     design: list = dataclasses.field(default_factory=lambda: [3, 3, 3, 3, 3])
+    physics: dict = dataclasses.field(default_factory=dict)   # your car's physics values (carphysics.VARS); missing = the simulator's
     zoom: float = 2.0                         # camera distance x the renderer's default
 
     @property
@@ -63,6 +64,8 @@ def load(cfg, maps):
             s.ai = counts
     if raw.get("difficulty") in DIFFICULTY:
         s.difficulty = raw["difficulty"]
+    from game import carphysics
+    s.physics = carphysics.clean(cfg, raw.get("physics"), carphysics.presets(cfg)[carphysics.DEFAULT_PRESET])
     if raw.get("crashes") in ("respawn", "out"):
         s.crashes = raw["crashes"]
     grid = raw.get("grid")

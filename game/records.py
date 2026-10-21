@@ -20,13 +20,13 @@ class PlayerRecords:
     def get(self, map_name):
         return self.records.get(map_name)
 
-    def offer(self, map_name, lap_s, design_text):
+    def offer(self, map_name, lap_s, design_text, physics="AI-equal"):
         """Keep lap_s if it beats your record here; True if it's a new record."""
         old = self.records.get(map_name)
         if old is not None and lap_s >= old["lap_s"]:
             return False
         self.records[map_name] = {"lap_s": round(float(lap_s), 3), "date": time.strftime("%Y-%m-%d %H:%M"),
-                                  "design": design_text}
+                                  "design": design_text, "physics": physics}
         store.save("records", self.records)
         return True
 

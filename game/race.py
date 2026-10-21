@@ -16,6 +16,9 @@ What the game adds to the simulator's race, all from outside its code:
 - Respawn mode: on contact (or 6 s stuck) your car is put back on the centre
   line where it was, at a standstill, and is a ghost for 3 s: the other
   cars' sensors don't see it and nothing can touch it (walls still count).
+- Car physics (the menu's Car physics page, game/carphysics.py): your car
+  can have its own grip, downforce, traction circle, braking and steering
+  values; the AI keeps the simulator's.
 """
 
 import math
@@ -31,6 +34,7 @@ from racer.scoring import f1_points
 from racer.track import SV
 from watch import race_order
 
+from game import carphysics
 from game.settings import DIFFICULTY
 
 YOU = "you"
@@ -152,13 +156,20 @@ class Race:
         designs = design.stock(cfg, n)
         designs[self.h] = settings.design
         env.set_designs(designs)
+        self.phys = carphysics.CarPhysics(cfg, carphysics.clean(cfg, settings.physics))
         self.ghost = None                                  # your car while it's a ghost, else None
         env._game_race = self                              # the scan wrapper reads this race's ghost
         if not getattr(env, "_game_ghost_scans", False):
             env._game_ghost_scans = True
             _install_ghost_scans(env, _RaceRef(env))
+            carphysics.install(env)                        # the wheel speed limit per car
+        carphysics.reset(env)
+        if not self.phys.is_sim:
+            self.phys.apply(env, self.h, settings.design)  # your car's own physics values
 
         self.obs = env.reset(rng, spawn="grid")
+        if not self.phys.is_sim:
+            self.phys.at_start(env, self.h)
         env.launch_steps = 0                               # the AI's launch is applied below, not yours
         dt = cfg.sim.control_dt
         self.dt = dt
@@ -208,6 +219,11 @@ class Race:
     def time_left(self):
         return max(self.env.max_steps * self.dt - self.time, 0.0) if self.laps is None else None
 
+    def your_steer_cap(self, v):
+        """Your car's steering cap at speed v, coasting, DRS shut."""
+        env, h = self.env, self.h
+        return carphysics.steer_cap(self.phys, v, float(env.car.grip[h]), 1.0, float(env.car.steer[h]), 1.0)
+
     def lap_of(self, i):
         """The lap car i is on (1-based), capped at the race's laps."""
         k = int(np.floor(self.line_distance()[i] / self.length)) + 1
@@ -252,11 +268,16 @@ class Race:
         ghost = self.ghost_active()
         self.ghost = h if ghost else None
         _GhostGeometry.hidden = (h,) if ghost else ()
+        carphysics.Active.car = None if self.phys.is_sim else h
+        carphysics.Active.phys, carphysics.Active.env, carphysics.Active.steer = self.phys, env, float(a[h, A_STEER])
         prev = self.line_distance()
         active = np.flatnonzero(~env.done)
         was_open = env.drs_open[h] > 0
         self.obs, _, term, _, _ = env.step(a)
         _GhostGeometry.hidden = ()
+        carphysics.Active.car = carphysics.Active.env = None
+        if not self.phys.is_sim and not env.done[h]:
+            self.phys.after_step(env, h)
         self.actions = a
         t = self.time
         if self.drs_request and env.drs_open[h] > 0:
@@ -373,7 +394,8 @@ class Race:
         clean = self.last_respawn < started
         record = False
         if clean and self.records is not None:
-            record = self.records.offer(self.env.map_name, lap_s, design.text(self.s.design))
+            record = self.records.offer(self.env.map_name, lap_s, design.text(self.s.design),
+                                        carphysics.label(self.cfg, self.phys.vals))
         self.new_record = self.new_record or record
         self.events.append(("lap", (lap_s, clean, record)))
 

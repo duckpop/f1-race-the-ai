@@ -18,9 +18,10 @@ import numpy as np
 from game import sim  # noqa: F401
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from game import inputs, menu, records, settings as settings_mod, store, ui
+from game import carphysics, inputs, menu, records, settings as settings_mod, store, ui
 from game.hud import Hud
 from game.mapping import MappingPage
+from game.physics_page import PhysicsPage
 from game.race import Race
 from game.settings import ZOOM_RANGE
 from game.view import RaceView, rgb
@@ -85,7 +86,8 @@ class App(QtCore.QObject):
         self.race_layout = QtWidgets.QVBoxLayout(self.race_page)
         self.race_layout.setContentsMargins(0, 0, 0, 0)
         self.mapping_page = MappingPage(self)
-        for page in (self.menu_page, self.race_page, self.mapping_page):
+        self.physics_page = PhysicsPage(self)
+        for page in (self.menu_page, self.race_page, self.mapping_page, self.physics_page):
             self.win.stack.addWidget(page)
 
         self.state = "menu"
@@ -151,6 +153,8 @@ class App(QtCore.QObject):
             self.menu_page.update()
         elif st == "mapping":
             self.mapping_page.tick(menu_ev, keys)
+        elif st == "physics":
+            self.physics_page.handle(menu_ev)
         elif st == "lights":
             if "pause" in presses:
                 self.pause()
@@ -212,7 +216,8 @@ class App(QtCore.QObject):
         if race.you_done():
             order = [i for i, s in race.classification() if s == "racing"]
             follow = order[0] if order else None
-        view.draw(alpha, follow, self.rotate, self.settings.zoom, dt)
+        speed = float(race.env.std[follow, 3]) if follow is not None else 0.0
+        view.draw(alpha, follow, self.rotate, self.settings.zoom, dt, speed)
         if self.hud.size() != view.view.size():
             self.hud.setGeometry(view.view.rect())
         self.hud.update()
@@ -260,6 +265,9 @@ class App(QtCore.QObject):
         """A race on the current env with the current settings: the lights next."""
         s = self.settings
         self.race = Race(self.cfg, s, self.env, self.policies, self.rng, self.records)
+        stock, mine = self.cfg.vehicle, self.race.phys.pcfg.vehicle
+        self.view.set_sizes([(mine.length, mine.width) if i == self.race.h else (stock.length, stock.width)
+                             for i in range(self.env.num_agents)])
         self.view.paint([rgb(self.car_hex(i)) for i in range(self.env.num_agents)])
         self.view.snap()
         self.hud.cache_step = -1
@@ -272,7 +280,8 @@ class App(QtCore.QObject):
         r = self.race
         length = ui.laps_text(r.laps) if r.laps else ui.clock(s.seconds)
         print(f"[play] {self.env.map_name} · {length} · {self.env.num_agents} cars · "
-              f"{menu.DIFFICULTY_NAMES[s.difficulty]} · crashes: {s.crashes} · you start P{r.h + 1}")
+              f"{menu.DIFFICULTY_NAMES[s.difficulty]} · crashes: {s.crashes} · car physics: "
+              f"{carphysics.label(self.cfg, r.phys.vals)} · you start P{r.h + 1}")
 
     def _lights_tick(self, now):
         L = self.lights
@@ -346,6 +355,17 @@ class App(QtCore.QObject):
         page = self.race_page if self.state in ("paused", "results") else self.menu_page
         self.win.stack.setCurrentWidget(page)
 
+    # ---- the car physics page ------------------------------------------------------------
+    def open_physics(self):
+        self.state = "physics"
+        self.physics_page.open(self.close_physics)
+        self.win.stack.setCurrentWidget(self.physics_page)
+
+    def close_physics(self):
+        settings_mod.save(self.settings)
+        self.state = "menu"
+        self.win.stack.setCurrentWidget(self.menu_page)
+
     def _new_pad(self, pad):
         """A controller with an unknown layout: map it now (pausing a race)."""
         if self.state in ("lights", "racing", "spectate"):
@@ -411,12 +431,10 @@ class App(QtCore.QObject):
         race = self.race
         if not race.you_racing() or time.monotonic() < self.crash_rumble_until:
             return
-        from racer import physics
         env, h = race.env, race.h
         v = float(env.std[h, 3])
         a = race.actions[h]
-        grip_capped = physics.max_steer(self.cfg, v, env.car.grip[h], 1.0, env.car.steer[h]) \
-            < self.cfg.vehicle.s_max * env.car.steer[h] * 0.999
+        grip_capped = race.your_steer_cap(v) < self.cfg.vehicle.s_max * env.car.steer[h] * 0.999
         at_limit = (grip_capped and abs(a[0]) >= 0.95) or (a[2] >= 0.9 and v > 25.0)
         if at_limit:
             self.controls.rumble(0.25, 0.05, 120)
